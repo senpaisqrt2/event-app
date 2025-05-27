@@ -83,6 +83,7 @@ def form_page():
             </form>
             <a class="nav-button" href="/last">Последнее сообщение</a>
             <a class="nav-button" href="/metrics">Метрики</a>
+            <a class="nav-button" href="/history">История сообщений</a>
             <a class="nav-button" href="http://localhost:3000/goto/ek7KFcfNg?orgId=1" target="_blank">Открыть Grafana</a>
         </div>
     </body>
@@ -118,6 +119,7 @@ from fastapi import Form
 @app.post("/send_form", response_class=HTMLResponse)
 def send_form_message(message: str = Form(...)):
     r.set("last_message", message)
+    r.lpush("messages", message)
     r.publish("events", message)
     return f"""
     <html>
@@ -160,6 +162,46 @@ def send_form_message(message: str = Form(...)):
     </html>
     """
 
+@app.get("/history", response_class=HTMLResponse)
+def show_history():
+    messages = r.lrange("messages", 0, 9)  # 10 последних
+    message_list = "".join(f"<li>{m}</li>" for m in messages)
+    return f"""
+    <html>
+    <head>
+        <title>История сообщений</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', sans-serif;
+                background: #121212;
+                color: #e0e0e0;
+                padding: 40px;
+            }}
+            ul {{
+                list-style: none;
+                padding: 0;
+            }}
+            li {{
+                padding: 10px;
+                background: #1e1e1e;
+                margin-bottom: 8px;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            }}
+            a {{
+                text-decoration: none;
+                color: #4CAF50;
+                font-weight: bold;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>Последние сообщения</h1>
+        <ul>{message_list}</ul>
+        <a href="/">← Назад</a>
+    </body>
+    </html>
+    """
 
 
 @app.post("/send/{message}")
