@@ -1,0 +1,166 @@
+
+
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+import redis
+
+app = FastAPI()
+r = redis.Redis(host="redis", port=6379, decode_responses=True)
+
+from fastapi.responses import HTMLResponse
+
+# @app.get("/", response_class=HTMLResponse)
+# def form_page():
+#     return """
+#     <html>
+#         <body>
+#             <h1>Отправить событие xxx</h1>
+#             <form action="/send_form" method="post">
+#                 <input name="message" type="text"/>
+#                 <input type="submit" value="Отправить"/>
+#             </form>
+#         </body>
+#     </html>
+#     """
+
+@app.get("/", response_class=HTMLResponse)
+def form_page():
+    return """
+    <html>
+    <head>
+        <title>Отправить событие</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', sans-serif;
+                background: #121212;
+                color: #e0e0e0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }
+            .container {
+                background: #1e1e1e;
+                padding: 30px 40px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+                text-align: center;
+            }
+            input[type="text"] {
+                padding: 10px;
+                width: 250px;
+                border: 1px solid #333;
+                border-radius: 6px;
+                background: #2c2c2c;
+                color: #e0e0e0;
+                margin-bottom: 20px;
+                font-size: 16px;
+            }
+            input[type="submit"] {
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 6px;
+                font-size: 16px;
+                cursor: pointer;
+            }
+            input[type="submit"]:hover {
+                background-color: #45a049;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Отправить событие</h1>
+            <form action="/send_form" method="post">
+                <input name="message" type="text" placeholder="Введите сообщение"/><br/>
+                <input type="submit" value="Отправить"/>
+            </form>
+        </div>
+    </body>
+    </html>
+    """
+
+
+
+from fastapi import Form
+
+# @app.post("/send_form")
+# def send_form_message(message: str = Form(...)):
+#     r.set("last_message", message)
+#     r.publish("events", message)
+#     return {"status": "sent", "message": message}
+
+# @app.post("/send_form", response_class=HTMLResponse)
+# def send_form_message(message: str = Form(...)):
+#     r.set("last_message", message)
+#     r.publish("events", message)
+#     return f"""
+#     <html>
+#         <body>
+#             <h1>Сообщение отправлено!</h1>
+#             <p>Вы отправили: <strong>{message}</strong></p>
+#             <a href="/">← Назад</a>
+#         </body>
+#     </html>
+#     """
+
+@app.post("/send_form", response_class=HTMLResponse)
+def send_form_message(message: str = Form(...)):
+    r.set("last_message", message)
+    r.publish("events", message)
+    return f"""
+    <html>
+    <head>
+        <title>Сообщение отправлено</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', sans-serif;
+                background: #121212;
+                color: #e0e0e0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }}
+            .container {{
+                background: #1e1e1e;
+                padding: 30px 40px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+                text-align: center;
+            }}
+            a {{
+                text-decoration: none;
+                color: #4CAF50;
+                font-weight: bold;
+                display: inline-block;
+                margin-top: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Сообщение отправлено!</h1>
+            <p>Вы отправили: <strong>{message}</strong></p>
+            <a href="/">← Назад</a>
+        </div>
+    </body>
+    </html>
+    """
+
+
+
+@app.post("/send/{message}")
+def send_message(message: str):
+    r.set("last_message", message)  # Кэшируем
+    r.publish("events", message)   # Публикуем
+    return {"status": "sent", "message": message}
+
+@app.get("/last")
+def get_last_message():
+    message = r.get("last_message")
+    return {"last_message": message}
