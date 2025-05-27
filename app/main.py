@@ -57,7 +57,7 @@ def form_page():
                 margin-bottom: 20px;
                 font-size: 16px;
             }
-            input[type="submit"] {
+            input[type="submit"], .nav-button {
                 background-color: #4CAF50;
                 color: white;
                 padding: 10px 20px;
@@ -65,8 +65,11 @@ def form_page():
                 border-radius: 6px;
                 font-size: 16px;
                 cursor: pointer;
+                margin: 10px;
+                text-decoration: none;
+                display: inline-block;
             }
-            input[type="submit"]:hover {
+            input[type="submit"]:hover, .nav-button:hover {
                 background-color: #45a049;
             }
         </style>
@@ -78,10 +81,15 @@ def form_page():
                 <input name="message" type="text" placeholder="Введите сообщение"/><br/>
                 <input type="submit" value="Отправить"/>
             </form>
+            <a class="nav-button" href="/last">Последнее сообщение</a>
+            <a class="nav-button" href="/metrics">Метрики</a>
+            <a class="nav-button" href="http://localhost:3000/goto/ek7KFcfNg?orgId=1" target="_blank">Открыть Grafana</a>
         </div>
     </body>
     </html>
     """
+
+
 
 
 
@@ -160,12 +168,52 @@ def send_message(message: str):
     r.publish("events", message)   # Публикуем
     return {"status": "sent", "message": message}
 
-@app.get("/last")
+@app.get("/last", response_class=HTMLResponse)
 def get_last_message():
     message = r.get("last_message")
-    return {"last_message": message}
+    return f"""
+    <html>
+    <head>
+        <title>Последнее сообщение</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', sans-serif;
+                background: #121212;
+                color: #e0e0e0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+            }}
+            .container {{
+                background: #1e1e1e;
+                padding: 30px 40px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+                text-align: center;
+            }}
+            a {{
+                text-decoration: none;
+                color: #4CAF50;
+                font-weight: bold;
+                display: inline-block;
+                margin-top: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Последнее сообщение</h1>
+            <p><strong>{message or "Нет сообщений"}</strong></p>
+            <a href="/">← Назад</a>
+        </div>
+    </body>
+    </html>
+    """
 
-from prometheus_client import Counter, generate_latest
+
+from prometheus_client import Counter, generate_latest, REGISTRY
 from fastapi.responses import Response
 
 REQUEST_COUNT = Counter("request_count", "Total HTTP requests", ["method", "endpoint"])
@@ -176,6 +224,35 @@ async def count_requests(request, call_next):
     REQUEST_COUNT.labels(request.method, request.url.path).inc()
     return response
 
-@app.get("/metrics")
+@app.get("/metrics", response_class=HTMLResponse)
 def metrics():
-    return Response(generate_latest(), media_type="text/plain")
+    raw = generate_latest(REGISTRY).decode("utf-8")
+    lines = raw.strip().split("\n")
+    pretty = "<br>".join(line.replace(" ", "&nbsp;") for line in lines)
+
+    return f"""
+    <html>
+    <head>
+        <title>Метрики</title>
+        <style>
+            body {{
+                font-family: monospace;
+                background: #121212;
+                color: #e0e0e0;
+                padding: 40px;
+            }}
+            a {{
+                text-decoration: none;
+                color: #4CAF50;
+                font-weight: bold;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>Метрики приложения</h1>
+        <pre>{pretty}</pre>
+        <a href="/">← Назад</a>
+    </body>
+    </html>
+    """
+
