@@ -33,3 +33,11 @@ services:
     ports:
       - "3000:3000"
 
+  logger:
+    build: .
+    command: [ "python", "logger.py" ]
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+
