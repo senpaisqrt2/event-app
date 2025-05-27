@@ -164,3 +164,18 @@ def send_message(message: str):
 def get_last_message():
     message = r.get("last_message")
     return {"last_message": message}
+
+from prometheus_client import Counter, generate_latest
+from fastapi.responses import Response
+
+REQUEST_COUNT = Counter("request_count", "Total HTTP requests", ["method", "endpoint"])
+
+@app.middleware("http")
+async def count_requests(request, call_next):
+    response = await call_next(request)
+    REQUEST_COUNT.labels(request.method, request.url.path).inc()
+    return response
+
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type="text/plain")
